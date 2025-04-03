@@ -104,5 +104,5 @@ void loop() {
         lastDisplayUpdate = millis();
     }
 
-    lastButtonState = currentButtonState; // Store the current button state for the next loop
+    lastButtonState = currentButtonState; 
 }
