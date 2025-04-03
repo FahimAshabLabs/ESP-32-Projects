@@ -11,19 +11,30 @@ Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
 unsigned long startTime = 0; // Timer start time
 unsigned long elapsedTime = 0; // Timer elapsed time
+unsigned long previousElapsedTime = 0; // To store previous elapsed time between sessions
 bool timerRunning = false; // To track the timer state
 bool lastButtonState = HIGH; // Previous state of the button
 bool currentButtonState; // Current state of the button
 unsigned long lastDebounceTime = 0; // Debounce time
 unsigned long debounceDelay = 50; // Debounce delay in milliseconds
+unsigned long lastDisplayUpdate = 0; // Last time display was updated
+const unsigned long displayUpdateInterval = 100; // Update display every 100ms
 
 void updateDisplay() {
     display.clearDisplay();
     display.setTextSize(1);  // Small text size
     display.setCursor(10, 20);
     
+    // Calculate the time to display
+    unsigned long timeToDisplay;
+    if (timerRunning) {
+        timeToDisplay = previousElapsedTime + (millis() - startTime);
+    } else {
+        timeToDisplay = elapsedTime;
+    }
+    
     // Display elapsed time in HH:MM:SS format
-    unsigned long seconds = elapsedTime / 1000;
+    unsigned long seconds = timeToDisplay / 1000;
     unsigned long minutes = seconds / 60;
     unsigned long hours = minutes / 60;
     
@@ -39,6 +50,11 @@ void updateDisplay() {
     display.print(":");
     if (seconds < 10) display.print("0"); 
     display.print(seconds);
+    
+    // Display timer status
+    display.setCursor(10, 40);
+    display.print(timerRunning ? "Running" : "Stopped");
+    
     display.display();
 }
 
@@ -67,7 +83,8 @@ void loop() {
 
         if (timerRunning) {
             // Stop the timer and calculate the elapsed time
-            elapsedTime += millis() - startTime;
+            elapsedTime = previousElapsedTime + (millis() - startTime);
+            previousElapsedTime = elapsedTime; // Save for next time timer is started
             timerRunning = false;
             Serial.print("Timer stopped, total time: ");
             Serial.println(elapsedTime / 1000);
@@ -78,13 +95,13 @@ void loop() {
             Serial.println("Timer started");
         }
 
-        updateDisplay(); // Update the display
+        updateDisplay(); // Update the display immediately when button is pressed
     }
 
-    if (timerRunning) {
-        // Update elapsed time every second if the timer is running
-        elapsedTime = millis() - startTime;
-        updateDisplay();  // Update the display every second
+    // Only update the display periodically to avoid flicker
+    if (millis() - lastDisplayUpdate > displayUpdateInterval) {
+        updateDisplay();
+        lastDisplayUpdate = millis();
     }
 
     lastButtonState = currentButtonState; // Store the current button state for the next loop
